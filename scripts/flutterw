@@ -1,0 +1,17 @@
+#!/bin/bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export PUB_CACHE="$ROOT/.tooling/pub-cache"
+export GRADLE_USER_HOME="$ROOT/.tooling/gradle-home"
+export ANDROID_HOME="${ANDROID_HOME:-$ROOT/.tooling/android-sdk}"
+export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
+export CI=true
+export GEM_HOME="$ROOT/.tooling/gems"
+export GEM_PATH="$GEM_HOME"
+export RUBYOPT=-rlogger
+if [ -x "$ROOT/.tooling/jdk21/Contents/Home/bin/jlink" ]; then
+  export JAVA_HOME="$ROOT/.tooling/jdk21/Contents/Home"
+fi
+export PATH="$ROOT/.tooling/gems/bin:$ROOT/.tooling/flutter/bin:${JAVA_HOME:-/usr}/bin:$PATH"
+exec "$ROOT/.tooling/flutter/bin/flutter" "$@"
