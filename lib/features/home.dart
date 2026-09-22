@@ -420,41 +420,92 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           const SizedBox(width: 8),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            if (ctrl.busy) const LinearProgressIndicator(minHeight: 2),
-            Expanded(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 760),
-                  child: trip == null
-                      ? welcome(inbox)
-                      : IndexedStack(
-                          index: tab,
-                          children: [
-                            dashboard(trip, inbox),
-                            library(trip),
-                            itinerary(trip),
-                            emergency(trip),
-                          ],
-                        ),
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [paper, Color(0xFFF1FAFD)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              if (ctrl.busy) const LinearProgressIndicator(minHeight: 2),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 760),
+                    child: trip == null
+                        ? welcome(inbox)
+                        : ClipRect(
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 280),
+                              reverseDuration: const Duration(
+                                milliseconds: 220,
+                              ),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeInCubic,
+                              layoutBuilder: (current, previous) => Stack(
+                                fit: StackFit.expand,
+                                children: current == null
+                                    ? previous
+                                    : [...previous, current],
+                              ),
+                              transitionBuilder: (child, animation) {
+                                final eased = CurvedAnimation(
+                                  parent: animation,
+                                  curve: Curves.easeOutCubic,
+                                );
+                                return FadeTransition(
+                                  opacity: eased,
+                                  child: ScaleTransition(
+                                    scale: Tween<double>(
+                                      begin: .992,
+                                      end: 1,
+                                    ).animate(eased),
+                                    child: child,
+                                  ),
+                                );
+                              },
+                              child: KeyedSubtree(
+                                key: ValueKey('${trip.id}-$tab'),
+                                child: switch (tab) {
+                                  0 => dashboard(trip, inbox),
+                                  1 => library(trip),
+                                  2 => itinerary(trip),
+                                  _ => emergency(trip),
+                                },
+                              ),
+                            ),
+                          ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-      floatingActionButton: trip != null && tab != 3
-          ? FloatingActionButton.extended(
-              onPressed: ctrl.busy ? null : addMenu,
-              icon: const Icon(Icons.add),
-              label: const Text('收进胶囊'),
-            )
-          : null,
+      floatingActionButton: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        transitionBuilder: (child, animation) => FadeTransition(
+          opacity: animation,
+          child: ScaleTransition(scale: animation, child: child),
+        ),
+        child: trip != null && tab != 3
+            ? FloatingActionButton.extended(
+                key: const ValueKey('add-capsule'),
+                onPressed: ctrl.busy ? null : addMenu,
+                icon: const Icon(Icons.add),
+                label: const Text('收进胶囊'),
+              )
+            : const SizedBox.shrink(key: ValueKey('no-add-capsule')),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
-        onDestinationSelected: (v) => setState(() => tab = v),
+        onDestinationSelected: (v) {
+          if (v != tab) setState(() => tab = v);
+        },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.explore_outlined),
@@ -602,6 +653,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         )
         .length;
     return ListView(
+      key: const PageStorageKey('dashboard'),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 105),
       children: [
         heading(
@@ -777,6 +829,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return ListView(
+      key: const PageStorageKey('library'),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 105),
       children: [
         heading(
@@ -832,6 +885,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final stops = c.data.stops.where((s) => s.tripId == t.id).toList()
       ..sort((a, b) => a.startUtc.compareTo(b.startUtc));
     return ListView(
+      key: const PageStorageKey('itinerary'),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 105),
       children: [
         heading(
@@ -942,6 +996,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget emergency(Trip t) => ListView(
+    key: const PageStorageKey('emergency'),
     padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
     children: [
       heading('JUST IN CASE', '多一份安心。', subtitle: '离线可查看，随时找得到。'),
@@ -1649,7 +1704,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             const Divider(),
             gap(16),
             const Text(
-              '旅途胶囊  1.1.0',
+              '旅途胶囊  1.1.2',
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
             gap(8),

@@ -62,7 +62,10 @@ void main() {
       tester.testTextInput.hide();
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('editor-save')));
-      await Future<void>.delayed(const Duration(milliseconds: 80));
+      for (var i = 0; i < 50; i++) {
+        if (controller.data.items.isNotEmpty && !controller.busy) break;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
       await tester.pumpAndSettle();
       expect(controller.data.items.single.address, '京都駅');
       await tester.tap(find.text('资料袋'));

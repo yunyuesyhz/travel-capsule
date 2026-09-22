@@ -31,3 +31,23 @@
 - APK v2 签名验证与 16 KB ZIP 对齐检查通过；min SDK 26、target SDK 36。
 - Android Manifest 已解析到自适应 XML 启动图标；提供 API 26 自适应/圆形资源和 API 33 单色主题资源。
 - 本轮未改动或构建 iOS；当前无已连接 Android 设备，因此未执行真机视觉验收。
+
+## 1.1.1 动效与 PDF 阅读页
+
+- 版本：1.1.1+4；交付文件：`artifacts/trail-capsule-1.1.1-arm64.apk`，21,880,464 字节，仅 ARM64。
+- SHA-256：`5eec77c616da63cf0c62cd84b56778798531c77577668f7c396cd5b6a0711d48`。
+- 底部四个栏目使用 280 ms 交叉淡化与轻微缩放，悬浮操作按钮同步过渡，并保留栏目滚动位置。
+- Android PDF 阅读页的返回、标题、阅读画布与分页区域已统一为应用视觉；PDF 页面切换使用 180 ms 淡入。
+- `flutter analyze`：通过；Flutter 自动测试：13 项通过；Android 应用模块原生测试：通过。
+- release 构建、APK v2 签名验证与 16 KB ZIP 对齐检查通过；Manifest 版本 1.1.1+4、min SDK 26、target SDK 36。
+- 本轮未改动或构建 iOS；当前无已连接 Android 设备，因此未执行真机视觉验收。
+
+## 1.1.2 PDF 启动崩溃修复
+
+- 版本：1.1.2+5；交付文件：`artifacts/trail-capsule-1.1.2-arm64.apk`，21,880,464 字节，仅 ARM64。
+- SHA-256：`ca842211347effcbc9db2290458a5f96f0474ba6757c543fcd1a6bd3bc874706`。
+- 回归测试在 API 35 复现到 `DecorView` 尚未建立时读取系统栏控制器导致的空指针；系统栏配置已移至 `setContentView` 之后。
+- PDF 阅读页启动测试在 API 26 与 API 35 均通过；文件异常时活动保持打开并显示“无法预览”。
+- `flutter analyze`、13 项 Flutter 自动测试及 4 项 Android 原生测试通过。
+- release 构建、APK v2 签名验证与 16 KB ZIP 对齐检查通过；Manifest 版本 1.1.2+5、min SDK 26、target SDK 36。
+- 本轮未改动或构建 iOS；当前无已连接 Android 设备，因此未执行真机视觉验收。

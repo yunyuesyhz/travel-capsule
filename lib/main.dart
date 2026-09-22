@@ -8,15 +8,15 @@ import 'data/controller.dart';
 import 'features/home.dart';
 
 const ink = Color(0xFF17343B),
-    paper = Color(0xFFF6FBFD),
-    ocean = Color(0xFF197C8C),
-    muted = Color(0xFF667C82),
-    sky = Color(0xFFDDF3FA),
-    seafoam = Color(0xFFDDF3E8),
-    sun = Color(0xFFFFB45C),
-    accent = Color(0xFFB85F2B),
+    paper = Color(0xFFFAFDFF),
+    ocean = Color(0xFF087F96),
+    muted = Color(0xFF648087),
+    sky = Color(0xFFE9F8FC),
+    seafoam = Color(0xFFEAF8F2),
+    sun = Color(0xFFFFC56E),
+    accent = Color(0xFFB76326),
     coral = Color(0xFFB9473F),
-    line = Color(0xFFDCE9ED);
+    line = Color(0xFFE2EEF2);
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz.initializeTimeZones();
@@ -215,8 +215,8 @@ class _CapsuleAppState extends State<CapsuleApp> {
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         indicatorColor: sky,
-        elevation: 8,
-        shadowColor: const Color(0x2217343B),
+        elevation: 5,
+        shadowColor: const Color(0x1617343B),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
             color: states.contains(WidgetState.selected) ? ocean : muted,
