@@ -90,7 +90,7 @@ flowchart TD
 - Trip：UUID、名称、目的地、默认 IANA 时区、起止日期、归档状态。
 - Item：UUID、tripId、类型、标题、正文、当地语言地址、来源、分类、创建/修改时间。
 - Attachment：UUID、itemId、内部相对路径、原文件名、MIME、字节数、SHA-256、保存状态。
-- ScheduleEntry：UUID、tripId、标题、关联 itemId、开始/结束 UTC 时间、开始/结束 IANA 时区、原始当地时间、完成/取消状态、置顶状态。
+- ScheduleEntry：UUID、tripId、标题、关联 itemIds（可多选）、开始/结束 UTC 时间、开始/结束 IANA 时区、原始当地时间、完成/取消状态、置顶状态。
 - EmergencyInfo：tripId、联系人、电话号码、保险与求助文字。
 - ImportJob：UUID、来源、收件箱位置、处理状态、错误、已创建 itemId。
 

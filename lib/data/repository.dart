@@ -108,8 +108,9 @@ class TravelRepository {
   Future<TravelItem> importFile(
     String source,
     String originalName,
-    String tripId,
-  ) async {
+    String tripId, {
+    String category = '其他',
+  }) async {
     final ext = p.extension(originalName).toLowerCase().replaceFirst('.', '');
     if (!extensions.contains(ext))
       throw const FormatException('支持 PDF、JPG、PNG、WebP 和 HEIC 图片');
@@ -141,6 +142,7 @@ class TravelRepository {
         id: id,
         tripId: tripId,
         title: p.basenameWithoutExtension(originalName),
+        category: category,
         fileName: p.basename(originalName),
         filePath: relative,
         digest: digest,
@@ -251,7 +253,12 @@ class TravelRepository {
         final j = s.toJson();
         j['id'] = newId();
         j['tripId'] = ids[s.tripId];
-        j['itemId'] = ids[s.itemId] ?? '';
+        final itemIds = s.itemIds
+            .map((itemId) => ids[itemId])
+            .whereType<String>()
+            .toList();
+        j['itemIds'] = itemIds;
+        j['itemId'] = itemIds.isEmpty ? '' : itemIds.first;
         result.stops.add(Stop.fromJson(j));
       }
       if (restored.trips.isNotEmpty)

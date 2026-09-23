@@ -5,6 +5,7 @@ export PUB_CACHE="$ROOT/.tooling/pub-cache"
 export GRADLE_USER_HOME="$ROOT/.tooling/gradle-home"
 export ANDROID_HOME="${ANDROID_HOME:-$ROOT/.tooling/android-sdk}"
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$ROOT/.tooling/xdg-config}"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 export CI=true
 export GEM_HOME="$ROOT/.tooling/gems"

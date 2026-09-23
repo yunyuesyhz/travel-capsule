@@ -34,11 +34,20 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("capsuleRelease") {
+            storeFile = rootProject.file("../.tooling/signing/current-release.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+            storeType = "PKCS12"
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Keep the same certificate for every sideloaded update.
+            signingConfig = signingConfigs.getByName("capsuleRelease")
         }
     }
 

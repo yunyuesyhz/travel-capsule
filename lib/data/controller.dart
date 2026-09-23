@@ -53,18 +53,27 @@ class CapsuleController extends ChangeNotifier {
       /* retry */
     }
   });
-  Future<void> importFile(String path, String name, String tripId) =>
-      run(() async {
-        final item = await repository.importFile(path, name, tripId);
-        final next = data.copy()..items.add(item);
-        try {
-          await repository.save(next);
-          data = next;
-        } catch (_) {
-          await repository.cleanup(data);
-          rethrow;
-        }
-      });
+  Future<void> importFile(
+    String path,
+    String name,
+    String tripId, {
+    String category = '其他',
+  }) => run(() async {
+    final item = await repository.importFile(
+      path,
+      name,
+      tripId,
+      category: category,
+    );
+    final next = data.copy()..items.add(item);
+    try {
+      await repository.save(next);
+      data = next;
+    } catch (_) {
+      await repository.cleanup(data);
+      rethrow;
+    }
+  });
   Future<void> restore(File file) => run(() async {
     data = await repository.restore(file, data);
   });

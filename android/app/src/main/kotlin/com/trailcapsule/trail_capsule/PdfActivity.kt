@@ -13,8 +13,10 @@ import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.text.TextUtils
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
+import android.view.animation.OvershootInterpolator
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -24,13 +26,13 @@ import java.util.concurrent.Executors
 
 /** Render one bounded-resolution page at a time; never decode a whole PDF into RAM. */
 class PdfActivity : Activity() {
-    private val backgroundColor = Color.rgb(250, 253, 255)
-    private val inkColor = Color.rgb(23, 52, 59)
-    private val oceanColor = Color.rgb(8, 127, 150)
-    private val mutedColor = Color.rgb(100, 128, 135)
-    private val skyColor = Color.rgb(233, 248, 252)
-    private val lineColor = Color.rgb(226, 238, 242)
-    private val disabledColor = Color.rgb(243, 247, 248)
+    private val backgroundColor = Color.rgb(255, 250, 243)
+    private val inkColor = Color.rgb(53, 37, 30)
+    private val oceanColor = Color.rgb(217, 119, 48)
+    private val mutedColor = Color.rgb(129, 114, 105)
+    private val skyColor = Color.rgb(240, 233, 255)
+    private val lineColor = Color.rgb(240, 230, 219)
+    private val disabledColor = Color.rgb(249, 241, 232)
 
     private var renderer: PdfRenderer? = null
     private var descriptor: ParcelFileDescriptor? = null
@@ -90,6 +92,7 @@ class PdfActivity : Activity() {
             isFocusable = true
             contentDescription = "返回资料袋"
             setOnClickListener { finish() }
+            addPressBounce(this)
         }
         val offline = TextView(this).apply {
             text = "离线阅读"
@@ -229,6 +232,25 @@ class PdfActivity : Activity() {
         isClickable = true
         isFocusable = true
         setOnClickListener { onClick() }
+        addPressBounce(this)
+    }
+
+    private fun addPressBounce(view: View) {
+        view.setOnTouchListener { target, event ->
+            if (!target.isEnabled) return@setOnTouchListener false
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    target.animate().cancel()
+                    target.animate().scaleX(.96f).scaleY(.96f).setDuration(90).start()
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    target.animate().cancel()
+                    target.animate().scaleX(1f).scaleY(1f).setDuration(340)
+                        .setInterpolator(OvershootInterpolator(1.8f)).start()
+                }
+            }
+            false // Keep Android's click and accessibility behavior.
+        }
     }
 
     private fun updatePageControls(index: Int, pageCount: Int) {
@@ -240,11 +262,11 @@ class PdfActivity : Activity() {
         control.isEnabled = enabled
         when {
             !enabled -> {
-                control.setTextColor(Color.rgb(151, 171, 176))
+                control.setTextColor(Color.rgb(160, 145, 133))
                 control.background = shape(disabledColor, dp(14))
             }
             filled -> {
-                control.setTextColor(Color.WHITE)
+                control.setTextColor(inkColor)
                 control.background = ripple(oceanColor, dp(14))
             }
             else -> {
@@ -264,7 +286,7 @@ class PdfActivity : Activity() {
     private fun ripple(fill: Int, radius: Int, stroke: Int? = null): RippleDrawable {
         val content = shape(fill, radius, stroke)
         val mask = shape(Color.WHITE, radius)
-        return RippleDrawable(ColorStateList.valueOf(Color.argb(35, 8, 127, 150)), content, mask)
+        return RippleDrawable(ColorStateList.valueOf(Color.argb(38, 116, 82, 209)), content, mask)
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()

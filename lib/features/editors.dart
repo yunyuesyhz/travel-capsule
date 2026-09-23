@@ -8,12 +8,14 @@ Future<T?> editor<T>(BuildContext context, Widget child) => Navigator.of(
 ).push<T>(MaterialPageRoute(builder: (_) => child, fullscreenDialog: true));
 Widget gap([double n = 18]) => SizedBox(height: n);
 Widget hintNote(String text, {IconData icon = Icons.lightbulb_outline}) =>
-    Container(
+    GlassPanel(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: sky,
-        borderRadius: BorderRadius.circular(16),
-      ),
+      borderRadius: BorderRadius.circular(16),
+      tint: sky,
+      opacity: .54,
+      blurSigma: 12,
+      borderOpacity: .52,
+      shadows: const [],
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -49,20 +51,11 @@ class EditScaffold extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
             children: [
-              Container(
+              GlassPanel(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: line),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x0C17343B),
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
+                borderRadius: BorderRadius.circular(24),
+                opacity: .64,
+                blurSigma: 14,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: children,
@@ -74,12 +67,14 @@ class EditScaffold extends StatelessWidget {
       ),
     ),
     bottomNavigationBar: SafeArea(
-      child: Container(
+      child: GlassPanel(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: line)),
-        ),
+        borderRadius: BorderRadius.zero,
+        tint: paper,
+        opacity: .64,
+        blurSigma: 14,
+        borderOpacity: .52,
+        shadows: const [],
         child: FilledButton.icon(
           key: const Key('editor-save'),
           onPressed: save,
@@ -173,17 +168,212 @@ class _TripEditorState extends State<TripEditor> {
 
 String? requiredText(String? v) =>
     v == null || v.trim().isEmpty ? '请填写这一项' : null;
+
+class SelectOption<T> {
+  const SelectOption(this.value, this.label, {this.subtitle});
+  final T value;
+  final String label;
+  final String? subtitle;
+}
+
+class SelectionField<T> extends StatelessWidget {
+  const SelectionField({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  final String label;
+  final T value;
+  final List<SelectOption<T>> options;
+  final ValueChanged<T> onChanged;
+
+  Future<void> _showOptions(BuildContext context) async {
+    final selected = await showModalBottomSheet<T>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(sheetContext).height * .72,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '选择$label',
+                  style: const TextStyle(
+                    color: ink,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                gap(6),
+                Text(
+                  '当前：${options.firstWhere((o) => o.value == value).label}',
+                  style: const TextStyle(color: muted, fontSize: 13),
+                ),
+                gap(12),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 6),
+                    itemBuilder: (ctx, index) {
+                      final option = options[index];
+                      final selected = option.value == value;
+                      return PressBounce(
+                        child: Material(
+                          color: selected ? sky : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          child: ListTile(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(color: selected ? ocean : line),
+                            ),
+                            leading: Icon(
+                              selected
+                                  ? Icons.check_circle_rounded
+                                  : Icons.circle_outlined,
+                              color: selected ? ocean : muted,
+                            ),
+                            title: Text(option.label),
+                            subtitle: option.subtitle == null
+                                ? null
+                                : Text(option.subtitle!),
+                            onTap: () =>
+                                Navigator.pop(sheetContext, option.value),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (selected != null) onChanged(selected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedLabel = options.firstWhere((o) => o.value == value).label;
+    return Semantics(
+      button: true,
+      label: '$label，$selectedLabel',
+      child: PressBounce(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => _showOptions(context),
+          child: InputDecorator(
+            decoration: InputDecoration(
+              labelText: label,
+              suffixIcon: const Icon(Icons.expand_more_rounded),
+            ),
+            child: Text(
+              selectedLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: ink, fontSize: 16),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 Widget zonePicker(String value, ValueChanged<String> change) =>
-    DropdownButtonFormField<String>(
-      initialValue: value,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: '当地时区'),
-      items: {...commonZones, value}
-          .map((z) => DropdownMenuItem(value: z, child: Text(zoneLabel(z))))
-          .toList(),
-      onChanged: (v) {
-        if (v != null) change(v);
-      },
+    SelectionField<String>(
+      label: '当地时区',
+      value: value,
+      options: {
+        ...commonZones,
+        value,
+      }.map((z) => SelectOption(z, zoneLabel(z))).toList(),
+      onChanged: change,
+    );
+
+Widget categoryPicker(String value, ValueChanged<String> change) =>
+    SelectionField<String>(
+      label: '资料分类（可选）',
+      value: value,
+      options: {
+        ...categories.skip(1),
+        value,
+      }.map((category) => SelectOption(category, category)).toList(),
+      onChanged: change,
+    );
+
+Future<String?> chooseImportCategory(BuildContext context) =>
+    showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width),
+      builder: (ctx) => SizedBox(
+        width: MediaQuery.sizeOf(ctx).width,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '给这批资料选个分类',
+                  style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
+                ),
+                gap(6),
+                const Text(
+                  '可以跳过，之后也能在资料详情中修改。',
+                  style: TextStyle(color: muted, fontSize: 13),
+                ),
+                gap(16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: categories
+                      .skip(1)
+                      .map(
+                        (category) => PressBounce(
+                          child: ActionChip(
+                            avatar: Icon(
+                              category == '交通'
+                                  ? Icons.train_outlined
+                                  : category == '住宿'
+                                  ? Icons.hotel_outlined
+                                  : category == '攻略'
+                                  ? Icons.menu_book_outlined
+                                  : Icons.folder_outlined,
+                            ),
+                            label: Text(category),
+                            onPressed: () => Navigator.pop(ctx, category),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+                gap(12),
+                TextButton.icon(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.more_horiz),
+                  label: const Text('跳过，归类到其他'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
 
 class ItemEditor extends StatefulWidget {
@@ -231,15 +421,7 @@ class _ItemEditorState extends State<ItemEditor> {
           validator: requiredText,
         ),
         gap(),
-        DropdownButtonFormField<String>(
-          initialValue: category,
-          decoration: const InputDecoration(labelText: '分类'),
-          items: categories
-              .skip(1)
-              .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-              .toList(),
-          onChanged: (v) => category = v!,
-        ),
+        categoryPicker(category, (v) => setState(() => category = v)),
         gap(),
         TextFormField(
           controller: body,
@@ -309,7 +491,8 @@ class StopEditor extends StatefulWidget {
 class _StopEditorState extends State<StopEditor> {
   final key = GlobalKey<FormState>();
   late TextEditingController title, note;
-  late String zone, endZone, itemId;
+  late String zone, endZone;
+  late Set<String> itemIds;
   late DateTime wall, endWall;
   late bool withEnd;
   @override
@@ -320,8 +503,9 @@ class _StopEditorState extends State<StopEditor> {
     note = TextEditingController(text: s?.note);
     zone = s?.zone ?? widget.trip.zone;
     endZone = s?.endZone ?? zone;
-    itemId = s?.itemId ?? '';
-    if (!widget.items.any((x) => x.id == itemId)) itemId = '';
+    itemIds =
+        s?.itemIds.where((id) => widget.items.any((x) => x.id == id)).toSet() ??
+        <String>{};
     final z = tz.TZDateTime.from(
       s?.startUtc ?? DateTime.now().add(const Duration(hours: 1)),
       tz.getLocation(zone),
@@ -372,14 +556,183 @@ class _StopEditorState extends State<StopEditor> {
     });
   }
 
+  Future<void> pickLinkedItems() async {
+    final selected = Set<String>.of(itemIds);
+    final result = await showModalBottomSheet<Set<String>>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (ctx, refresh) => SafeArea(
+          child: SizedBox(
+            height: MediaQuery.sizeOf(ctx).height * .72,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '关联资料',
+                        style: TextStyle(
+                          fontSize: 21,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      gap(4),
+                      Text(
+                        '可多选，已选 ${selected.length} 份',
+                        style: const TextStyle(color: muted),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: widget.items.isEmpty
+                      ? const Center(child: Text('资料袋里还没有资料'))
+                      : ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: widget.items.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 6),
+                          itemBuilder: (ctx, index) {
+                            final item = widget.items[index];
+                            final isSelected = selected.contains(item.id);
+                            return PressBounce(
+                              child: CheckboxListTile(
+                                value: isSelected,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                tileColor: isSelected ? sky : Colors.white,
+                                title: Text(
+                                  item.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                subtitle: Text(
+                                  '${item.category} · ${item.fileName.isEmpty ? '文字资料' : item.fileName}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                secondary: Icon(
+                                  item.isPdf
+                                      ? Icons.picture_as_pdf_outlined
+                                      : Icons.folder_outlined,
+                                  color: ocean,
+                                ),
+                                onChanged: (checked) => refresh(() {
+                                  if (checked == true) {
+                                    selected.add(item.id);
+                                  } else {
+                                    selected.remove(item.id);
+                                  }
+                                }),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                  child: FilledButton.icon(
+                    onPressed: () => Navigator.pop(sheetContext, selected),
+                    icon: const Icon(Icons.check_rounded),
+                    label: Text('完成 · ${selected.length} 份'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (result != null && mounted) setState(() => itemIds = result);
+  }
+
+  Widget linkedItemsField() {
+    final selected = widget.items
+        .where((item) => itemIds.contains(item.id))
+        .toList();
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: line),
+      ),
+      child: PressBounce(
+        enabled: widget.items.isNotEmpty,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: widget.items.isEmpty ? null : pickLinkedItems,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.folder_copy_outlined, color: ocean),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        '关联资料',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    Text(
+                      selected.isEmpty ? '可选' : '${selected.length} 份',
+                      style: const TextStyle(color: muted),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.expand_more_rounded, color: muted),
+                  ],
+                ),
+                gap(8),
+                if (selected.isEmpty)
+                  Text(
+                    widget.items.isEmpty ? '资料袋里还没有资料' : '点此选择一份或多份资料',
+                    style: const TextStyle(color: muted, fontSize: 13),
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: selected
+                        .map(
+                          (item) => Chip(
+                            avatar: Icon(
+                              item.isPdf
+                                  ? Icons.picture_as_pdf_outlined
+                                  : Icons.description_outlined,
+                              size: 18,
+                              color: ocean,
+                            ),
+                            label: Text(
+                              item.title,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            backgroundColor: sky,
+                            side: BorderSide.none,
+                          ),
+                        )
+                        .toList(),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   String label(DateTime d) =>
       '${d.year}/${d.month}/${d.day}  ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
   Future<DateTime?> resolve(DateTime w, String z) async {
     final options = localInstants(w, z);
     if (options.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('这个当地时间因夏令时调整不存在，请修改时间。')));
+      showAppNotice(context, '这个当地时间因夏令时调整不存在，请修改时间。', isError: true);
       return null;
     }
     if (options.length == 1) return options.first;
@@ -389,10 +742,12 @@ class _StopEditorState extends State<StopEditor> {
         title: const Text('这个时间出现了两次'),
         children: options
             .map(
-              (d) => SimpleDialogOption(
-                onPressed: () => Navigator.pop(ctx, d),
-                child: Text(
-                  '${label(w)} · UTC${tz.TZDateTime.from(d, tz.getLocation(z)).timeZoneOffset.inHours >= 0 ? '+' : ''}${tz.TZDateTime.from(d, tz.getLocation(z)).timeZoneOffset.inHours}',
+              (d) => PressBounce(
+                child: SimpleDialogOption(
+                  onPressed: () => Navigator.pop(ctx, d),
+                  child: Text(
+                    '${label(w)} · UTC${tz.TZDateTime.from(d, tz.getLocation(z)).timeZoneOffset.inHours >= 0 ? '+' : ''}${tz.TZDateTime.from(d, tz.getLocation(z)).timeZoneOffset.inHours}',
+                  ),
                 ),
               ),
             )
@@ -424,11 +779,13 @@ class _StopEditorState extends State<StopEditor> {
           icon: const Icon(Icons.schedule),
           label: Text('开始  ${label(wall)}'),
         ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('设置结束 / 到达时间'),
-          value: withEnd,
-          onChanged: (v) => setState(() => withEnd = v),
+        PressBounce(
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('设置结束 / 到达时间'),
+            value: withEnd,
+            onChanged: (v) => setState(() => withEnd = v),
+          ),
         ),
         if (withEnd) ...[
           zonePicker(endZone, (v) => setState(() => endZone = v)),
@@ -440,25 +797,7 @@ class _StopEditorState extends State<StopEditor> {
           ),
           gap(),
         ],
-        DropdownButtonFormField<String>(
-          initialValue: itemId,
-          isExpanded: true,
-          decoration: const InputDecoration(labelText: '关联资料'),
-          items: [
-            const DropdownMenuItem(value: '', child: Text('暂不关联')),
-            ...widget.items.map(
-              (i) => DropdownMenuItem(
-                value: i.id,
-                child: Text(
-                  i.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-          ],
-          onChanged: (v) => itemId = v!,
-        ),
+        linkedItemsField(),
         gap(),
         TextFormField(
           controller: note,
@@ -479,9 +818,7 @@ class _StopEditorState extends State<StopEditor> {
         final end = withEnd ? await resolve(endWall, endZone) : null;
         if (!mounted || !context.mounted || (withEnd && end == null)) return;
         if (end != null && !end.isAfter(start)) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('结束时间必须晚于开始时间')));
+          showAppNotice(context, '结束时间必须晚于开始时间', isError: true);
           return;
         }
         final s = widget.stop == null
@@ -498,7 +835,7 @@ class _StopEditorState extends State<StopEditor> {
         s.endUtc = end;
         s.zone = zone;
         s.endZone = endZone;
-        s.itemId = itemId;
+        s.itemIds = itemIds.toList();
         s.note = note.text.trim();
         Navigator.pop(context, s);
       },

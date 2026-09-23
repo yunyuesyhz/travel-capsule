@@ -114,14 +114,19 @@ class Stop {
     required this.zone,
     this.endUtc,
     this.endZone,
-    this.itemId = '',
+    String itemId = '',
+    List<String>? itemIds,
     this.note = '',
     this.done = false,
     this.cancelled = false,
     this.pinned = false,
-  });
+  }) : itemIds = itemIds ?? (itemId.isEmpty ? <String>[] : <String>[itemId]);
   final String id;
-  String tripId, title, zone, itemId, note;
+  String tripId, title, zone, note;
+  List<String> itemIds;
+  // Keep the legacy single-item shape readable for older saved data.
+  String get itemId => itemIds.isEmpty ? '' : itemIds.first;
+  set itemId(String value) => itemIds = value.isEmpty ? [] : [value];
   String? endZone;
   DateTime startUtc;
   DateTime? endUtc;
@@ -134,6 +139,7 @@ class Stop {
     'endUtc': endUtc?.toUtc().toIso8601String(),
     'zone': zone,
     'endZone': endZone,
+    'itemIds': itemIds,
     'itemId': itemId,
     'note': note,
     'done': done,
@@ -148,7 +154,11 @@ class Stop {
     endUtc: j['endUtc'] == null ? null : DateTime.parse(j['endUtc']).toUtc(),
     zone: j['zone'],
     endZone: j['endZone'],
-    itemId: j['itemId'] ?? '',
+    itemIds: j['itemIds'] is List
+        ? List<String>.from(j['itemIds'])
+        : ((j['itemId'] ?? '').toString().isEmpty
+              ? <String>[]
+              : <String>[(j['itemId'] ?? '').toString()]),
     note: j['note'] ?? '',
     done: j['done'] ?? false,
     cancelled: j['cancelled'] ?? false,
@@ -286,7 +296,7 @@ String clockText(DateTime utc, String zone, {bool date = true}) {
 
 String zoneLabel(String z) =>
     {
-      'Asia/Shanghai': '中国 · 上海',
+      'Asia/Shanghai': '中国 · 北京',
       'Asia/Tokyo': '日本 · 东京',
       'Asia/Seoul': '韩国 · 首尔',
       'Asia/Bangkok': '泰国 · 曼谷',
