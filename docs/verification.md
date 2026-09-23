@@ -111,3 +111,12 @@
 - 按钮、可点击卡片、列表选项、分类标签和底部 Tab 加入按压缩小、松开回弹；手指拖动超过阈值会解除按压状态。原生 PDF 浏览器的返回与翻页按钮加入同类动效。
 - 新增回弹交互测试，验证按钮点击与卡片拖动；完整 16 项 Flutter 测试、`flutter analyze --no-pub`、Dart 格式化与 Android Release 构建通过。Manifest 为 1.1.9+12、min SDK 26、target SDK 36、仅 ARM64。
 - 当前无可用 Android 设备用于真机视觉验收；未构建 iOS。
+
+## 1.2.0 Tab 过渡动画优化
+
+- 版本：1.2.0+13；ARM64 APK：`artifacts/trail-capsule-1.2.0-arm64.apk`，21,815,676 字节。
+- SHA-256：`4143296163105f6d22c0d6160a20abfb93f30bf8037e2a9a95b3843708b03b80`。APK v2 签名、16 KB ZIP 对齐和发布证书一致性检查通过；签名与 1.1.9 相同，可覆盖安装。
+- 主内容使用 280 ms 两阶段 Fade Through，带 8–12 px 方向提示；滑动加入实时位移、透明度、边缘阻尼和未触发回弹。底部导航使用单一共享选中胶囊，图标固定尺寸并执行短促淡化与轻弹。
+- 各 Tab 使用独立 PageStorageKey 保留滚动位置，并在系统开启“减少动态效果”时关闭页面、胶囊及图标过渡。
+- 新增 Tab 动画测试，验证退场/进场透明度、共享指示器移动和滑动切换；完整 17 项 Flutter 测试、`flutter analyze --no-pub`、Dart 格式化与 Android Release 构建通过。Manifest 为 1.2.0+13、min SDK 26、target SDK 36、仅 ARM64。
+- 当前无可用 Android 设备用于真机视觉验收；未构建 iOS。

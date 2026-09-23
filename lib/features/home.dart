@@ -24,6 +24,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   int tab = 0;
   double _horizontalDrag = 0;
+  double _tabDragOffset = 0;
+  bool _draggingTab = false;
   String category = '全部', query = '';
   Timer? timer;
   CapsuleController get c => ref.read(controllerProvider);
@@ -407,6 +409,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget build(BuildContext context) {
     final ctrl = ref.watch(controllerProvider), trip = ctrl.data.activeTrip;
     final inbox = ctrl.data.items.where((i) => i.tripId.isEmpty).length;
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false;
     return Scaffold(
       extendBody: true,
       appBar: AppBar(
@@ -464,61 +468,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         : ClipRect(
                             child: GestureDetector(
                               behavior: HitTestBehavior.translucent,
-                              onHorizontalDragStart: (_) => _horizontalDrag = 0,
+                              onHorizontalDragStart: (_) => setState(() {
+                                _horizontalDrag = 0;
+                                _tabDragOffset = 0;
+                                _draggingTab = true;
+                              }),
                               onHorizontalDragUpdate: (details) {
-                                _horizontalDrag += details.delta.dx;
+                                setState(() {
+                                  _horizontalDrag += details.delta.dx;
+                                  final beyondEdge =
+                                      (tab == 0 && _horizontalDrag > 0) ||
+                                      (tab == 3 && _horizontalDrag < 0);
+                                  _tabDragOffset =
+                                      (_horizontalDrag *
+                                              (beyondEdge ? .12 : .28))
+                                          .clamp(-18.0, 18.0);
+                                });
                               },
                               onHorizontalDragEnd: (details) {
                                 final drag = _horizontalDrag;
-                                _horizontalDrag = 0;
                                 final velocity =
                                     details.velocity.pixelsPerSecond.dx;
-                                if (drag.abs() < 64 && velocity.abs() < 420)
-                                  return;
-                                final direction = drag.abs() >= 64
+                                final shouldSwitch =
+                                    drag.abs() >= 48 || velocity.abs() >= 420;
+                                final direction = drag.abs() >= 48
                                     ? drag
                                     : velocity;
-                                final next = (tab + (direction < 0 ? 1 : -1))
-                                    .clamp(0, 3);
-                                if (next != tab) setState(() => tab = next);
+                                final next = shouldSwitch
+                                    ? (tab + (direction < 0 ? 1 : -1)).clamp(
+                                        0,
+                                        3,
+                                      )
+                                    : tab;
+                                setState(() {
+                                  _horizontalDrag = 0;
+                                  _tabDragOffset = 0;
+                                  _draggingTab = false;
+                                });
+                                if (next != tab) _selectTab(next);
                               },
-                              child: AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 280),
-                                reverseDuration: const Duration(
-                                  milliseconds: 220,
-                                ),
-                                switchInCurve: Curves.easeOutCubic,
-                                switchOutCurve: Curves.easeInCubic,
-                                layoutBuilder: (current, previous) => Stack(
-                                  fit: StackFit.expand,
-                                  children: current == null
-                                      ? previous
-                                      : [...previous, current],
-                                ),
-                                transitionBuilder: (child, animation) {
-                                  final eased = CurvedAnimation(
-                                    parent: animation,
-                                    curve: Curves.easeOutCubic,
-                                  );
-                                  return FadeTransition(
-                                    opacity: eased,
-                                    child: ScaleTransition(
-                                      scale: Tween<double>(
-                                        begin: .992,
-                                        end: 1,
-                                      ).animate(eased),
-                                      child: child,
-                                    ),
-                                  );
-                                },
-                                child: KeyedSubtree(
-                                  key: ValueKey('${trip.id}-$tab'),
-                                  child: switch (tab) {
-                                    0 => dashboard(trip, inbox),
-                                    1 => library(trip),
-                                    2 => itinerary(trip),
-                                    _ => emergency(trip),
-                                  },
+                              onHorizontalDragCancel: () => setState(() {
+                                _horizontalDrag = 0;
+                                _tabDragOffset = 0;
+                                _draggingTab = false;
+                              }),
+                              child: _TabDragFeedback(
+                                offset: _tabDragOffset,
+                                tracking: _draggingTab,
+                                reduceMotion: reduceMotion,
+                                child: _TabContentSwitcher(
+                                  index: tab,
+                                  reduceMotion: reduceMotion,
+                                  children: [
+                                    dashboard(trip, inbox),
+                                    library(trip),
+                                    itinerary(trip),
+                                    emergency(trip),
+                                  ],
                                 ),
                               ),
                             ),
@@ -599,13 +605,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     ),
                   ),
                   child: RepaintBoundary(
-                    child: Row(
-                      children: [
+                    child: _AnimatedBottomTabBar(
+                      position: (tab - _tabDragOffset / 60).clamp(0.0, 3.0),
+                      tracking: _draggingTab,
+                      reduceMotion: reduceMotion,
+                      tabs: [
                         _BottomTab(
                           label: '路上',
                           icon: Icons.explore_outlined,
                           selectedIcon: Icons.explore,
                           selected: tab == 0,
+                          reduceMotion: reduceMotion,
                           onTap: () => _selectTab(0),
                         ),
                         _BottomTab(
@@ -613,6 +623,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           icon: Icons.folder_outlined,
                           selectedIcon: Icons.folder,
                           selected: tab == 1,
+                          reduceMotion: reduceMotion,
                           onTap: () => _selectTab(1),
                         ),
                         _BottomTab(
@@ -620,6 +631,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           icon: Icons.route_outlined,
                           selectedIcon: Icons.route,
                           selected: tab == 2,
+                          reduceMotion: reduceMotion,
                           onTap: () => _selectTab(2),
                         ),
                         _BottomTab(
@@ -627,6 +639,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           icon: Icons.health_and_safety_outlined,
                           selectedIcon: Icons.health_and_safety,
                           selected: tab == 3,
+                          reduceMotion: reduceMotion,
                           onTap: () => _selectTab(3),
                         ),
                       ],
@@ -642,7 +655,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _selectTab(int index) {
-    if (index != tab) setState(() => tab = index);
+    if (index == tab) return;
+    HapticFeedback.selectionClick();
+    setState(() => tab = index);
   }
 
   Widget welcome(int inbox) => ListView(
@@ -766,7 +781,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         )
         .length;
     return ListView(
-      key: const PageStorageKey('dashboard'),
+      key: PageStorageKey('dashboard-${t.id}'),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 105),
       children: [
         heading(
@@ -899,7 +914,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 subtitle: '${items.length} 份离线可看',
                 tint: sky,
                 iconColor: accent,
-                onTap: () => setState(() => tab = 1),
+                onTap: () => _selectTab(1),
               ),
             ),
             const SizedBox(width: 12),
@@ -910,7 +925,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 subtitle: stops.isEmpty ? '安排下一站' : '${stops.length} 个行程安排',
                 tint: seafoam,
                 iconColor: leaf,
-                onTap: () => setState(() => tab = 2),
+                onTap: () => _selectTab(2),
               ),
             ),
           ],
@@ -918,7 +933,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         if (overdue > 0) ...[
           gap(12),
           TextButton.icon(
-            onPressed: () => setState(() => tab = 2),
+            onPressed: () => _selectTab(2),
             icon: const Icon(Icons.history, size: 17),
             label: Text('$overdue 段已过时行程待整理'),
           ),
@@ -947,7 +962,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ),
             TextButton(
-              onPressed: () => setState(() => tab = 1),
+              onPressed: () => _selectTab(1),
               child: const Text('全部资料 →'),
             ),
           ],
@@ -982,7 +997,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             .toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return ListView(
-      key: const PageStorageKey('library'),
+      key: PageStorageKey('library-${t.id}'),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 105),
       children: [
         heading(
@@ -1041,7 +1056,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final stops = c.data.stops.where((s) => s.tripId == t.id).toList()
       ..sort((a, b) => a.startUtc.compareTo(b.startUtc));
     return ListView(
-      key: const PageStorageKey('itinerary'),
+      key: PageStorageKey('itinerary-${t.id}'),
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 105),
       children: [
         heading(
@@ -1153,7 +1168,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget emergency(Trip t) => ListView(
-    key: const PageStorageKey('emergency'),
+    key: PageStorageKey('emergency-${t.id}'),
     padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
     children: [
       heading('JUST IN CASE', '多一份安心。', subtitle: '离线可查看，随时找得到。'),
@@ -1984,7 +1999,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             const Divider(),
             gap(16),
             const Text(
-              '旅途胶囊  1.1.9',
+              '旅途胶囊  1.2.0',
               style: TextStyle(fontWeight: FontWeight.w600),
             ),
             gap(8),
@@ -1999,12 +2014,230 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   );
 }
 
+class _TabDragFeedback extends StatelessWidget {
+  const _TabDragFeedback({
+    required this.offset,
+    required this.tracking,
+    required this.reduceMotion,
+    required this.child,
+  });
+
+  final double offset;
+  final bool tracking;
+  final bool reduceMotion;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+    tween: Tween<double>(begin: 0, end: offset),
+    duration: tracking || reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 180),
+    curve: tracking ? Curves.linear : Curves.easeOutBack,
+    builder: (context, value, child) {
+      final opacity = 1 - (value.abs() / 18).clamp(0.0, 1.0) * .08;
+      return Transform.translate(
+        offset: Offset(value, 0),
+        child: Opacity(opacity: opacity, child: child),
+      );
+    },
+    child: child,
+  );
+}
+
+class _TabContentSwitcher extends StatefulWidget {
+  const _TabContentSwitcher({
+    required this.index,
+    required this.reduceMotion,
+    required this.children,
+  });
+
+  final int index;
+  final bool reduceMotion;
+  final List<Widget> children;
+
+  @override
+  State<_TabContentSwitcher> createState() => _TabContentSwitcherState();
+}
+
+class _TabContentSwitcherState extends State<_TabContentSwitcher>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  int? _outgoingIndex;
+  int _direction = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 280),
+          value: 1,
+        )..addStatusListener((status) {
+          if (status == AnimationStatus.completed &&
+              _outgoingIndex != null &&
+              mounted) {
+            setState(() => _outgoingIndex = null);
+          }
+        });
+  }
+
+  @override
+  void didUpdateWidget(_TabContentSwitcher oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.index != oldWidget.index) {
+      _direction = widget.index > oldWidget.index ? 1 : -1;
+      _outgoingIndex = oldWidget.index;
+      if (widget.reduceMotion) {
+        _outgoingIndex = null;
+        _controller.value = 1;
+      } else {
+        _controller.forward(from: 0);
+      }
+    } else if (!oldWidget.reduceMotion && widget.reduceMotion) {
+      _outgoingIndex = null;
+      _controller.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  double _progress(double value, double begin, double end, Curve curve) {
+    final normalized = ((value - begin) / (end - begin)).clamp(0.0, 1.0);
+    return curve.transform(normalized);
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _controller,
+    builder: (context, _) {
+      final value = _controller.value;
+      final outgoingProgress = _progress(value, 0, .35, Curves.easeInCubic);
+      final incomingProgress = _progress(value, .35, 1, Curves.easeOutCubic);
+
+      return Stack(
+        fit: StackFit.expand,
+        children: List.generate(widget.children.length, (index) {
+          final isCurrent = index == widget.index;
+          final isOutgoing = index == _outgoingIndex;
+          final visible = isCurrent || isOutgoing;
+          var opacity = isCurrent ? 1.0 : 0.0;
+          var dx = 0.0;
+          var scale = 1.0;
+
+          if (_outgoingIndex != null) {
+            if (isOutgoing) {
+              opacity = 1 - outgoingProgress;
+              dx = -_direction * 8 * outgoingProgress;
+            } else if (isCurrent) {
+              opacity = incomingProgress;
+              dx = _direction * 12 * (1 - incomingProgress);
+              scale = .985 + .015 * incomingProgress;
+            }
+          }
+
+          return Offstage(
+            offstage: !visible,
+            child: TickerMode(
+              enabled: isCurrent,
+              child: ExcludeSemantics(
+                excluding: !isCurrent,
+                child: IgnorePointer(
+                  ignoring: !isCurrent || _controller.isAnimating,
+                  child: Opacity(
+                    key: ValueKey('tab-opacity-$index'),
+                    opacity: opacity,
+                    child: Transform.translate(
+                      offset: Offset(dx, 0),
+                      child: Transform.scale(
+                        scale: scale,
+                        alignment: Alignment.center,
+                        child: KeyedSubtree(
+                          key: ValueKey('tab-content-$index'),
+                          child: widget.children[index],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      );
+    },
+  );
+}
+
+class _AnimatedBottomTabBar extends StatelessWidget {
+  const _AnimatedBottomTabBar({
+    required this.position,
+    required this.tracking,
+    required this.reduceMotion,
+    required this.tabs,
+  });
+
+  final double position;
+  final bool tracking;
+  final bool reduceMotion;
+  final List<Widget> tabs;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 72,
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final cellWidth = constraints.maxWidth / tabs.length;
+        const indicatorWidth = 58.0;
+        final left = cellWidth * position + (cellWidth - indicatorWidth) / 2;
+        return Stack(
+          children: [
+            AnimatedPositioned(
+              left: left,
+              top: 8,
+              width: indicatorWidth,
+              height: 32,
+              duration: tracking || reduceMotion
+                  ? Duration.zero
+                  : const Duration(milliseconds: 300),
+              curve: Curves.easeOutBack,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  key: const Key('tab-selection-indicator'),
+                  decoration: BoxDecoration(
+                    color: ocean,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x2ED97730),
+                        blurRadius: 12,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Row(children: tabs),
+          ],
+        );
+      },
+    ),
+  );
+}
+
 class _BottomTab extends StatelessWidget {
   const _BottomTab({
     required this.label,
     required this.icon,
     required this.selectedIcon,
     required this.selected,
+    required this.reduceMotion,
     required this.onTap,
   });
 
@@ -2012,6 +2245,7 @@ class _BottomTab extends StatelessWidget {
   final IconData icon;
   final IconData selectedIcon;
   final bool selected;
+  final bool reduceMotion;
   final VoidCallback onTap;
 
   @override
@@ -2021,6 +2255,7 @@ class _BottomTab extends StatelessWidget {
       selected: selected,
       label: label,
       child: PressBounce(
+        enabled: !reduceMotion,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(24),
@@ -2029,49 +2264,57 @@ class _BottomTab extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOutCubic,
-                  width: selected ? 58 : 48,
+                SizedBox(
+                  width: 58,
                   height: 32,
-                  decoration: BoxDecoration(
-                    color: selected ? ocean : Colors.transparent,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
                   child: Center(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 260),
-                      reverseDuration: const Duration(milliseconds: 190),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      transitionBuilder: (child, animation) {
-                        final eased = CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeOutCubic,
-                        );
-                        return FadeTransition(
-                          opacity: eased,
-                          child: ScaleTransition(
-                            scale: Tween<double>(
-                              begin: .78,
-                              end: 1,
-                            ).animate(eased),
-                            child: child,
+                    child: AnimatedScale(
+                      scale: selected ? 1.05 : 1,
+                      duration: reduceMotion
+                          ? Duration.zero
+                          : const Duration(milliseconds: 220),
+                      curve: Curves.easeOutBack,
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: AnimatedSwitcher(
+                          duration: reduceMotion
+                              ? Duration.zero
+                              : const Duration(milliseconds: 160),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder: (child, animation) {
+                            final eased = CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.easeOutCubic,
+                            );
+                            return FadeTransition(
+                              opacity: eased,
+                              child: ScaleTransition(
+                                scale: Tween<double>(
+                                  begin: .9,
+                                  end: 1,
+                                ).animate(eased),
+                                child: child,
+                              ),
+                            );
+                          },
+                          child: Icon(
+                            selected ? selectedIcon : icon,
+                            key: ValueKey(selected),
+                            color: selected ? Colors.white : muted,
+                            size: 23,
                           ),
-                        );
-                      },
-                      child: Icon(
-                        selected ? selectedIcon : icon,
-                        key: ValueKey(selected),
-                        color: selected ? ink : muted,
-                        size: selected ? 23 : 22,
+                        ),
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(height: 4),
                 AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 250),
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 180),
                   curve: Curves.easeOutCubic,
                   style: TextStyle(
                     color: selected ? ink : muted,

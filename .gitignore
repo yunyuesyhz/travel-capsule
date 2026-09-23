@@ -19,6 +19,7 @@ artifacts/
 artifacts/*
 !artifacts/SHA256SUMS.txt
 !artifacts/trail-capsule-1.1.9-arm64.apk
+!artifacts/trail-capsule-1.2.0-arm64.apk
 **/.DS_Store
 .flutter-plugins
 .flutter-plugins-dependencies
